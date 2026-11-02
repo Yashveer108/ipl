@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IPL Auction Arena</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#f4f5f9;--fg:#14172a;--card:#fff;--mut:#667;--acc:#1d5fb8;--ok:#1b9e55;--bad:#d33;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1120;--fg:#eef0fa;--card:#1a1e36;--mut:#9aa;--acc:#5aa0ff}}
+:root[data-theme="dark"]{--bg:#0e1120;--fg:#eef0fa;--card:#1a1e36;--mut:#9aa;--acc:#5aa0ff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+#app{max-width:760px;margin:0 auto;padding:12px}
+h1{font-size:22px;margin:6px 0}h2{font-size:17px;margin:14px 0 6px}
+.card{background:var(--card);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 4px #0002}
+button,select,input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #8885;background:var(--card);color:var(--fg);margin:3px 0}
+button{cursor:pointer;background:var(--acc);color:#fff;border:0;font-weight:600}
+button.alt{background:transparent;color:var(--fg);border:1px solid #8886}
+button:disabled{opacity:.4}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tm{padding:10px;border-radius:12px;color:#fff;font-weight:700;text-align:left}
+.tm small{display:block;font-weight:400;opacity:.9}
+.av{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#fff;flex:none}
+.big{font-size:26px;font-weight:800}.mut{color:var(--mut);font-size:13px}
+.chip{display:inline-block;padding:2px 8px;border-radius:99px;background:#8883;font-size:12px;margin-right:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px 4px;text-align:left;border-bottom:1px solid #8883}
+.toast{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));background:#222;color:#fff;padding:10px;border-radius:10px;z-index:9;text-align:center}
+.wrap{overflow-x:auto}
+</style></head><body><div id="app"></div><div id="toast" class="toast" style="display:none"></div>
+<script>
+const TEAMS={CSK:['Chennai Super Kings','#d9a400'],MI:['Mumbai Indians','#1d5fb8'],RCB:['Royal Challengers Bengaluru','#c62828'],KKR:['Kolkata Knight Riders','#5b2a86'],SRH:['Sunrisers Hyderabad','#e8590c'],DC:['Delhi Capitals','#1565c0'],PBKS:['Punjab Kings','#b71c1c'],RR:['Rajasthan Royals','#d81b8a'],GT:['Gujarat Titans','#1c3a5e'],LSG:['Lucknow Super Giants','#00838f']};
+const MODES={mega:{n:'Mega',max:25,bud:120,os:8},classic:{n:'Classic',max:11,bud:90,os:4},sprint:{n:'Sprint',max:5,bud:50,os:2}};
+const ROLE={O:'Opening batter',M:'Middle-order batter',W:'Wicketkeeper-batter',F:'Finisher',P:'Pace bowler',S:'Spin bowler',A:'All-rounder'};
+/* PLAYER LIST: Name,role,rating(0-99),o = overseas. You can edit/add lines here. */
+const RAW=`MS Dhoni,W,90,
+Virat Kohli,M,96,
+Rohit Sharma,O,92,
+Ruturaj Gaikwad,O,90,
+Jasprit Bumrah,P,97,
+Suryakumar Yadav,M,94,
+Hardik Pandya,A,91,
+Ravindra Jadeja,A,91,
+KL Rahul,W,92,
+Rishabh Pant,W,92,
+Shubman Gill,O,93,
+Yashasvi Jaiswal,O,93,
+Sanju Samson,W,92,
+Rashid Khan,S,95,o
+Travis Head,O,94,o
+Heinrich Klaasen,W,94,o
+Jos Buttler,W,93,o
+Phil Salt,O,90,o
+Sunil Narine,A,93,o
+Andre Russell,A,90,o
+Nicholas Pooran,W,91,o
+Pat Cummins,P,90,o
+Mitchell Starc,P,88,o
+Kuldeep Yadav,S,92,
+Yuzvendra Chahal,S,88,
+Mohammed Siraj,P,90,
+Arshdeep Singh,P,90,
+Varun Chakravarthy,S,91,
+Axar Patel,A,90,
+Shreyas Iyer,M,91,
+Abhishek Sharma,O,92,
+Tilak Varma,M,91,
+Rinku Singh,F,90,
+Shivam Dube,F,88,
+Trent Boult,P,89,o
+Ishan Kishan,W,86,
+Sai Sudharsan,O,88,
+Rajat Patidar,M,86,
+Devdutt Padikkal,O,83,
+Prabhsimran Singh,W,84,
+Priyansh Arya,O,82,
+Ayush Mhatre,O,80,
+Dewald Brevis,M,82,o
+Tim David,F,87,o
+Marcus Stoinis,A,85,o
+Glenn Maxwell,A,82,o
+Liam Livingstone,A,83,o
+Mitchell Marsh,A,84,o
+Jake Fraser-McGurk,O,78,o
+Faf du Plessis,O,82,o
+David Miller,F,84,o
+Aiden Markram,M,82,o
+Quinton de Kock,W,85,o
+Rahmanullah Gurbaz,W,80,o
+Kagiso Rabada,P,90,o
+Josh Hazlewood,P,89,o
+Jofra Archer,P,87,o
+Mohammed Shami,P,87,
+Bhuvneshwar Kumar,P,87,
+T Natarajan,P,84,
+Harshal Patel,P,84,
+Prasidh Krishna,P,86,
+Avesh Khan,P,82,
+Khaleel Ahmed,P,82,
+Deepak Chahar,P,83,
+Washington Sundar,A,84,
+Ravichandran Ashwin,S,83,
+Noor Ahmad,S,86,o
+Maheesh Theekshana,S,82,o
+Wanindu Hasaranga,S,80,o
+Nitish Kumar Reddy,A,78,
+Riyan Parag,M,80,
+Dhruv Jurel,W,78,
+Jitesh Sharma,W,76,
+Abhishek Porel,W,76,
+Karun Nair,M,74,
+Ajinkya Rahane,M,74,
+Manish Pandey,M,68,
+Shahrukh Khan,F,74,
+Sameer Rizvi,F,72,
+Ashutosh Sharma,F,74,
+Nehal Wadhera,M,74,
+Shashank Singh,F,78,
+Vijay Shankar,A,66,
+Venkatesh Iyer,A,78,
+Ramandeep Singh,F,72,
+Naman Dhir,F,72,
+Rahul Tripathi,M,70,
+Rahul Tewatia,F,76,
+Harpreet Brar,A,70,
+Shahbaz Ahmed,A,70,
+Krunal Pandya,A,78,
+Rachin Ravindra,A,80,o
+Sam Curran,A,82,o
+Moeen Ali,A,78,o
+Jacob Bethell,M,78,o
+Will Jacks,A,80,o
+Gerald Coetzee,P,74,o
+Lockie Ferguson,P,82,o
+Matheesha Pathirana,P,82,o
+Mustafizur Rahman,P,80,o
+Anrich Nortje,P,82,o
+Spencer Johnson,P,76,o
+Naveen-ul-Haq,P,74,o
+Tushar Deshpande,P,72,
+Harshit Rana,P,80,
+Mayank Yadav,P,78,
+Yash Dayal,P,74,
+Mukesh Kumar,P,74,
+Akash Deep,P,76,
+Vaibhav Arora,P,72,
+Umran Malik,P,68,
+Sandeep Sharma,P,72,
+Mohit Sharma,P,72,
+Mohsin Khan,P,72,
+Simarjeet Singh,P,66,
+Rasikh Salam,P,66,
+Yash Thakur,P,70,
+Kartik Tyagi,P,62,
+Chetan Sakariya,P,62,
+Ravi Bishnoi,S,80,
+Rahul Chahar,S,70,
+Suyash Sharma,S,72,
+Mayank Markande,S,68,
+Karn Sharma,S,62,
+Piyush Chawla,S,60,
+Digvesh Rathi,S,70,
+Vignesh Puthur,S,66,
+Manimaran Siddharth,S,66,
+Sai Kishore,S,74,
+Jayant Yadav,S,62,
+Vaibhav Suryavanshi,O,74,
+Angkrish Raghuvanshi,M,72,
+Sarfaraz Khan,M,66,
+Abdul Samad,F,68,
+Shubham Dubey,F,62,
+Atharva Taide,O,62,
+Anmolpreet Singh,M,60,
+Mayank Agarwal,O,66,
+Prithvi Shaw,O,68,
+Rovman Powell,F,76,o
+Shimron Hetmyer,F,80,o
+Romario Shepherd,A,76,o
+Jason Holder,A,70,o
+Sherfane Rutherford,F,74,o
+Alzarri Joseph,P,74,o
+Akeal Hosein,S,70,o
+Daryl Mitchell,A,74,o
+Kane Williamson,M,78,o
+Devon Conway,O,78,o
+Finn Allen,O,74,o
+Tim Seifert,W,72,o
+Mitchell Santner,S,74,o
+Matt Henry,P,76,o
+Kyle Jamieson,P,70,o
+Nathan Ellis,P,74,o
+Adam Zampa,S,74,o
+Ben Dwarshuis,P,62,o
+Sean Abbott,A,66,o
+Cameron Green,A,80,o
+Jamie Overton,A,70,o
+Reece Topley,P,68,o
+Adil Rashid,S,76,o
+Harry Brook,M,80,o
+Ben Duckett,O,72,o
+Joe Root,M,74,o
+Jonny Bairstow,W,76,o
+Tristan Stubbs,M,82,o
+Marco Jansen,A,80,o
+Lungi Ngidi,P,78,o
+Keshav Maharaj,S,70,o
+Tabraiz Shamsi,S,68,o
+Reeza Hendricks,O,74,o
+Sikandar Raza,A,72,o
+Dasun Shanaka,A,68,o`;
+const PL=RAW.trim().split('\n').map((l,i)=>{const[n,r,q,o]=l.split(',');return{id:i,n,r,q:+q,o:o==='o'}});
+const base=p=>p.q>=90?2:p.q>=82?1.5:p.q>=74?1:p.q>=66?.5:.25;
+const inc=b=>b<5?.25:b<10?.5:1;
+const cr=n=>'₹'+(+n).toFixed(2).replace(/\.?0+$/,'')+' Cr';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return`hsl(${h} 55% 42%)`};
+var showUp=false;
+const av=p=>{const sk=['#f1c9a5','#d9a273','#b87a4b','#8d5a36'][p.id%4],jc={O:'#1d5fb8',M:'#c62828',W:'#1b9e55',F:'#e8590c',P:'#5b2a86',S:'#00838f',A:'#d9a400'}[p.r];return`<svg class="av" viewBox="0 0 100 100" style="background:${hue(p.n)};overflow:hidden"><path d="M14 100q0-30 36-30t36 30z" fill="${jc}"/><circle cx="50" cy="42" r="19" fill="${sk}"/><path d="M29 36a21 21 0 0 1 42 0z" fill="${jc}"/><rect x="26" y="35" width="48" height="5" rx="2" fill="${jc}"/><circle cx="43" cy="45" r="2" fill="#222"/><circle cx="57" cy="45" r="2" fill="#222"/><path d="M43 52q7 5 14 0" stroke="#222" fill="none" stroke-width="2"/></svg>`};
+function buildOrder(){const s=PL.map(p=>({id:p.id,k:p.q+Math.random()*.9})).sort((a,b)=>b.k-a.k).map(x=>x.id);let o=[];for(let i=0;i<s.length;i+=35)o=o.concat(shuf(s.slice(i,i+35)));return o}
+const setName=i=>i<35?'Marquee Set':'Set '+Math.floor(i/35);
+
+const DEFAULT_CFG={apiKey:"AIzaSyD02RcXR5GP8kwfAfCydhnlSZOLjYxrTG0",authDomain:"proto-auction.firebaseapp.com",projectId:"proto-auction",storageBucket:"proto-auction.firebasestorage.app",messagingSenderId:"544846060791",appId:"1:544846060791:web:2041128ec4c41ba6e887f2",measurementId:"G-C5TMXG9W98"};
+window.claude=window.claude||{use:async()=>null};
+let db=null,uid='u'+Math.random().toString(36).slice(2,9),NAME='',S=null,M={},local=false,subs=[],pubList=[],sampleFn=null,mute=false,tt;
+try{NAME=localStorage.getItem('nm')||''}catch(e){}
+const toast=t=>{const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',2800)};
+function speak(t){try{if(mute||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/₹|Cr/g,m=>m=='₹'?'':' crore'));u.rate=1.02;speechSynthesis.speak(u)}catch(e){}}
+async function init(){
+  try{const U=await claude.use('user');if(U&&U.id)uid=await U.id()}catch(e){}
+  try{db=await claude.use('db')}catch(e){}
+  try{sampleFn=await claude.use('sample')}catch(e){}
+  connectFb();
+  if(db){subs.push(db.collection('rooms').where('pub','==',true).onSnapshot(s=>{pubList=s.docs.map(d=>d.data()).filter(x=>x.stage==='lobby'&&Date.now()-x.ts<6*36e5);if(!S)render()},()=>{}))}
+  render();setInterval(tick,400);setInterval(()=>{const e=document.getElementById('tm');if(e&&S&&S.cur)e.textContent=Math.max(0,Math.ceil((S.cur.end-Date.now())/1000))+'s'},250);
+}
+async function enableOnline(){
+  try{const P=await claude.use('permissions');if(P)await P.request()}catch(e){}
+  try{const U=await claude.use('user');if(U&&U.id)uid=await U.id()}catch(e){}
+  try{db=await claude.use('db')}catch(e){}
+  try{sampleFn=await claude.use('sample')}catch(e){}
+  if(db){subs.push(db.collection('rooms').where('pub','==',true).onSnapshot(s=>{pubList=s.docs.map(d=>d.data()).filter(x=>x.stage==='lobby'&&Date.now()-x.ts<6*36e5);if(!S)render()},()=>{}));toast('Online play is ON. Tap Create again.')}
+  else toast('Still locked. Open the page menu at the top, choose Permissions, allow it, then reopen.');
+  render();
+}
+
+function connectFb(){
+  try{let id=localStorage.getItem('uid');if(!id){id='u'+Math.random().toString(36).slice(2,10);localStorage.setItem('uid',id)}uid=id;
+  const c=DEFAULT_CFG;
+  if(c&&c.projectId&&window.firebase){if(!firebase.apps.length)firebase.initializeApp(c);db=firebase.firestore()}}catch(e){toast('Firebase error: '+(e.message||e))}
+}
+function saveCfg(){
+  const t=document.getElementById('fb').value,c={};
+  for(const m of t.matchAll(/(\w+)\s*:\s*["']([^"']+)["']/g))c[m[1]]=m[2];
+  if(!c.apiKey||!c.projectId)return toast('That does not look right. Copy the whole firebaseConfig block.');
+  try{localStorage.setItem('fbcfg',JSON.stringify(c))}catch(e){}
+  location.reload();
+}
+async function enableOnline(){toast('Paste your Firebase config in the box below, then tap Save.')}
+function save(){NAME=(document.getElementById('nm')||{}).value||NAME||'Player';try{localStorage.setItem('nm',NAME)}catch(e){}}
+const isHost=()=>local||(S&&S.host===uid);
+function push(){if(S){S.ts=Date.now();if(!local&&db)db.doc('rooms/'+S.code).set(S).catch(e=>toast('Save error: '+(e.message||e)))}render()}
+function unsubAll(keep){subs.slice(keep||0).forEach(f=>f());subs=subs.slice(0,keep||0)}
+
+/* ---------- rooms ---------- */
+async function create(){
+  save();if(!db)return enableOnline();
+  const mode=document.getElementById('md').value,pub=document.getElementById('pb').checked;
+  const snap=await db.collection('rooms').limit(100).get(),used=new Set(),now=Date.now();
+  snap.docs.forEach(d=>{const x=d.data();if(now-x.ts<6*36e5&&x.stage!=='done')used.add(+d.id.slice(1,4));else db.doc('rooms/'+d.id).delete().catch(()=>{})});
+  const free=[];for(let i=1;i<=100;i++)if(!used.has(i))free.push(i);
+  if(!free.length)return toast('All 100 rooms are busy. Try again later.');
+  const n=free[Math.random()*free.length|0],code='R'+String(n).padStart(3,'0')+'-'+(1000+Math.random()*9000|0);
+  S={code,mode,pub,host:uid,hostName:NAME,stage:'lobby',ts:now,teams:{}};M={};local=false;
+  await db.doc('rooms/'+code).set(S);watch(code);render();
+}
+function watch(code){
+  unsubAll(1);
+  subs.push(db.collection('members').where('code','==',code).onSnapshot(s=>{M={};s.docs.forEach(d=>{const x=d.data();M[x.team]=x});render()},()=>{}));
+  if(S.host===uid)subs.push(db.collection('bids').where('code','==',code).onSnapshot(s=>s.docChanges().forEach(c=>{if(c.type!=='removed'){const d=c.doc.data();accept(d.team,d.pid,d.amt)}}),()=>{}));
+  else subs.push(db.doc('rooms/'+code).onSnapshot(s=>{if(s.exists){const was=S&&S.msg;S=s.data();if(S.msg&&S.msg!==was&&S.stage==='live')speak(S.msg);render()}else{toast('Room closed');leave()}},()=>{}));
+}
+async function join(code){
+  save();if(!db)return enableOnline();
+  code=(code||document.getElementById('jc').value).trim().toUpperCase();
+  const d=await db.doc('rooms/'+code).get();
+  if(!d.exists)return toast('No room with that code');
+  S=d.data();M={};local=false;watch(code);render();
+}
+function leave(){unsubAll(1);S=null;M={};local=false;render()}
+function offline(){save();S={code:'LOCAL',mode:document.getElementById('md').value,pub:false,host:uid,stage:'lobby',teams:{}};M={};local=true;render()}
+async function claim(t){
+  if(local){if(M[t])delete M[t];else M[t]={team:t,uid:'local',name:t};return render()}
+  if(M[t]&&M[t].uid!==uid)return toast('Team already taken');
+  save();const mine=Object.values(M).filter(x=>x.uid===uid);
+  for(const x of mine)await db.doc('members/'+S.code+'_'+x.team).delete();
+  if(!(M[t]&&M[t].uid===uid))await db.doc('members/'+S.code+'_'+t).set({code:S.code,team:t,uid,name:NAME||'Player'});
+}
+function setMode(v){S.mode=v;push()}function setPub(v){S.pub=v;push()}
+function start(){
+  const ids=Object.keys(M);if(ids.length<2)return toast('Need at least 2 teams');
+  const m=MODES[S.mode];S.teams={};ids.forEach(t=>S.teams[t]={uid:M[t].uid,name:M[t].name,bud:m.bud,sq:[],os:0});
+  S.order=buildOrder();S.i=0;S.round=1;S.unsold=[];S.log=[];S.cur=null;S.wait=Date.now()+2500;S.stage='live';S.msg='Welcome to the IPL auction! Let the bidding begin.';speak(S.msg);push();
+}
+/* ---------- auction engine (runs on host) ---------- */
+function can(t,p,amt){const m=MODES[S.mode];return t.sq.length<m.max&&(!p.o||t.os<m.os)&&t.bud-amt>=(m.max-t.sq.length-1)*.25-1e-9}
+function tick(){if(!S||!isHost()||S.stage!=='live')return;const n=Date.now();if(S.cur){if(n>S.cur.end)settle()}else if(n>S.wait)nextP()}
+function nextP(){
+  const m=MODES[S.mode];
+  if(Object.values(S.teams).every(t=>t.sq.length>=m.max))return finish();
+  if(S.i>=S.order.length){if(S.round==1&&S.unsold.length){S.round=2;S.order=shuf(S.unsold);S.unsold=[];S.i=0;S.log.unshift('Accelerated round: unsold players return!')}else return finish()}
+  const pid=S.order[S.i++],p=PL[pid];
+  if(!Object.values(S.teams).some(t=>can(t,p,base(p)))){if(S.round==1)S.unsold.push(pid);return nextP()}
+  S.cur={pid,bid:base(p),tm:null,end:Date.now()+15000};
+  S.msg=`Next up: ${p.n}, ${ROLE[p.r]}${p.o?', overseas':''}. Base price ${cr(base(p))}.`;speak(S.msg);push();
+}
+function settle(){
+  const c=S.cur,p=PL[c.pid];
+  if(c.tm){const T=S.teams[c.tm];T.bud=+(T.bud-c.bid).toFixed(2);T.sq.push({id:p.id,pr:c.bid});if(p.o)T.os++;S.msg=`SOLD! ${p.n} to ${TEAMS[c.tm][0]} for ${cr(c.bid)}`}
+  else{if(S.round==1)S.unsold.push(p.id);S.msg=`${p.n} goes unsold`}
+  S.log.unshift(S.msg);S.log=S.log.slice(0,8);S.cur=null;S.wait=Date.now()+3500;speak(S.msg);push();
+}
+function finish(){S.stage='done';S.cur=null;S.msg='The auction is over!';speak(S.msg);push()}
+function accept(tm,pid,amt){
+  if(!S||!isHost()||S.stage!=='live')return;const c=S.cur;if(!c||c.pid!==pid||c.tm===tm)return;
+  const need=c.tm?+(c.bid+inc(c.bid)).toFixed(2):c.bid;if(Math.abs(amt-need)>1e-6)return;
+  const T=S.teams[tm];if(!T||!can(T,PL[pid],need))return;
+  c.bid=need;c.tm=tm;c.end=Math.max(c.end,Date.now()+8000);push();
+}
+function need(){const c=S.cur;return c.tm?+(c.bid+inc(c.bid)).toFixed(2):c.bid}
+function bid(tm){
+  if(!S||!S.cur)return;const a=need();
+  if(local||S.host===uid)accept(tm,S.cur.pid,a);
+  else db.doc('bids/'+S.code+'_'+tm).set({code:S.code,team:tm,pid:S.cur.pid,amt:a,n:Date.now()}).catch(e=>toast('Bid failed'));
+}
+const myTeam=()=>Object.keys(S.teams||{}).find(t=>S.teams[t].uid===uid);
+/* ---------- team rating ---------- */
+function rate(t){
+  const sq=t.sq.map(s=>PL[s.id]);if(!sq.length)return{score:0,gaps:['no players'],best:'-',grade:'-'};
+  const big=sq.length>=11,nd=big?{O:2,M:2,F:1,P:3,S:1,A:1}:{O:1,M:1,F:1,P:1,S:1,A:1};
+  const grp=p=>p.r==='W'?'M':p.r,gaps=[];let cov=0;
+  for(const g in nd){const c=sq.filter(p=>grp(p)===g).length;cov+=Math.min(c,nd[g])/nd[g];if(c<nd[g])gaps.push(({O:'opener',M:'middle order',F:'finisher',P:'pace bowling',S:'spin',A:'all-rounder'})[g])}
+  cov=Math.min(1,cov/6/Math.min(1,sq.length/6));
+  const q=sq.reduce((a,p)=>a+p.q,0)/sq.length,score=Math.round(q*.6+cov*40),best=sq.slice().sort((a,b)=>b.q-a.q)[0].n;
+  return{score,gaps,best,q:Math.round(q),grade:score>=88?'A+ Champions material':score>=80?'A Title contenders':score>=72?'B Playoff team':score>=64?'C Mid-table':'D Rebuild needed'};
+}
+async function analyst(){
+  const el=document.getElementById('ai');if(!sampleFn){el.textContent='AI analyst is not available here.';return}
+  el.textContent='Analyst is thinking...';
+  const d=Object.keys(S.teams).map(t=>`${TEAMS[t][0]} (${S.teams[t].name}): `+S.teams[t].sq.map(s=>`${PL[s.id].n} [${ROLE[PL[s.id].r]}] ${cr(s.pr)}`).join(', ')).join('\n');
+  try{const r=await sampleFn('You are an IPL cricket analyst. Based on each squad below, using your knowledge of the players’ career records and recent form, write 2 punchy sentences per team about strengths and weaknesses (openers, middle order, finishers, pace, spin), then name the best team overall. Squads:\n'+d,{cache:false});el.textContent=r.text}catch(e){el.textContent='Analyst unavailable right now.'}
+}
+/* ---------- UI ---------- */
+function render(){
+  const a=document.getElementById('app');
+  if(!S)return a.innerHTML=home();
+  a.innerHTML=S.stage==='lobby'?lobby():S.stage==='live'?auction():result();
+}
+function home(){
+  return`<h1>🏏 IPL Auction Arena</h1><div class="mut">Bid with friends: 100 rooms, up to 10 teams per room.</div>
+<div class="card"><input id="nm" placeholder="Your name" value="${esc(NAME)}" style="width:100%">
+<div class="row"><select id="md">${Object.keys(MODES).map(k=>`<option value="${k}">${MODES[k].n} · ${MODES[k].max} players · ₹${MODES[k].bud} Cr · ${MODES[k].os} overseas</option>`).join('')}</select></div>
+<label><input type="checkbox" id="pb" style="margin-right:6px">Public room (shown in the list)</label>
+<div class="row"><button onclick="create()">Create online room</button><button class="alt" onclick="offline()">Play offline (one phone)</button></div></div>
+<div class="card"><h2>Join with a room code</h2><div class="row"><input id="jc" placeholder="e.g. R042-1234"><button onclick="join()">Join</button></div></div>
+<div class="card"><h2>Public rooms</h2>${pubList.length?pubList.map(r=>`<div class="row"><div>${esc(r.code)} · ${MODES[r.mode].n}<div class="mut">Host: ${esc(r.hostName||'?')}</div></div><button onclick="join('${r.code}')">Join</button></div>`).join(''):'<div class="mut">No public rooms open right now.</div>'}</div>
+${db?'<div class="mut">Online play is ON.</div>':'<div class="card"><b>Connect online play</b><div class="mut">Paste your Firebase config here once, then tap Save.</div><textarea id="fb" rows="6" style="width:100%" placeholder="const firebaseConfig = {...}"></textarea><button onclick="saveCfg()">Save</button></div>'}`;
+}
+function lobby(){
+  const h=isHost(),m=MODES[S.mode];
+  return`<h1>Room ${esc(S.code)}</h1>
+<div class="card"><b>${m.n} mode</b><div class="mut">${m.max} players max · ₹${m.bud} Cr · ${m.os} overseas max · ${S.pub?'Public':'Private'} room</div>
+${S.code!=='LOCAL'?'<div class="mut">Share the code above with friends so they can join.</div>':''}
+${h?`<div class="row"><select onchange="setMode(this.value)">${Object.keys(MODES).map(k=>`<option value="${k}" ${k==S.mode?'selected':''}>${MODES[k].n}</option>`).join('')}</select>${local?'':`<button class="alt" onclick="setPub(${!S.pub})">Make ${S.pub?'private':'public'}</button>`}</div>`:''}</div>
+<h2>${local?'Tap teams that are playing':'Pick your team'}</h2><div class="grid">${Object.keys(TEAMS).map(t=>{const x=M[t];return`<button class="tm" style="background:${TEAMS[t][1]};opacity:${x&&x.uid!==uid&&!local?.45:1}" onclick="claim('${t}')">${t}<small>${TEAMS[t][0]}</small><small>${x?(local?'✔ playing':esc(x.name)+(x.uid===uid?' (you)':'')):'free'}</small></button>`}).join('')}</div>
+${h?`<button style="width:100%;margin-top:12px" onclick="start()">Start auction (${Object.keys(M).length} teams)</button><div class="mut">Host keeps this page open during the auction.</div>`:'<div class="mut">Waiting for the host to start...</div>'}
+<button class="alt" onclick="leave()">Leave room</button>`;
+}
+function auction(){
+  const c=S.cur,p=c&&PL[c.pid],mt=myTeam(),m=MODES[S.mode];
+  const set=S.round==2?'Accelerated round':setName(S.i-1);
+  let h=`<div class="row"><div><b>${esc(S.code)}</b> · ${m.n}</div><div style="text-align:right"><button class="alt" onclick="mute=!mute;render()">${mute?'🔇':'🔊'}</button></div></div>`;
+  h+=`<div class="card">`;
+  if(c){const T=c.tm;h+=`<div class="mut">${set} · ${S.i}/${S.order.length}</div><div class="row" style="flex-wrap:nowrap">${av(p)}<div style="flex:1"><div class="big">${esc(p.n)}</div><span class="chip">${ROLE[p.r]}</span>${p.o?'<span class="chip">✈ Overseas</span>':'<span class="chip">🇮🇳 Indian</span>'}<span class="chip">Rating ${p.q}</span><div class="mut">Base ${cr(base(p))}</div></div></div>
+<div class="big" style="margin-top:8px">${cr(c.bid)} <span id="tm" class="mut">${Math.max(0,Math.ceil((c.end-Date.now())/1000))}s</span></div>
+<div>${T?`Highest bid: <b style="color:${TEAMS[T][1]}">${TEAMS[T][0]}</b>`:'No bids yet'}</div>`;
+    if(local)h+=`<div class="grid">${Object.keys(S.teams).map(t=>`<button class="tm" style="background:${TEAMS[t][1]}" ${S.teams[t].sq.length>=m.max||c.tm===t||!can(S.teams[t],p,need())?'disabled':''} onclick="bid('${t}')">${t} · ${cr(need())}</button>`).join('')}</div>`;
+    else if(mt)h+=`<button style="width:100%;margin-top:8px;background:${TEAMS[mt][1]}" ${c.tm===mt||!can(S.teams[mt],p,need())?'disabled':''} onclick="bid('${mt}')">${c.tm===mt?'You lead the bid':'BID '+cr(need())}</button>`;
+    else h+='<div class="mut">You are watching.</div>';
+  }else h+=`<div class="big">🎙 ${esc(S.msg||'')}</div>`;
+  h+=`</div><div class="card"><div class="mut">Live feed</div>${(S.log||[]).map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="mut">-</div>'}</div>`;
+  h+=`<button class="alt" style="width:100%" onclick="showUp=!showUp;render()">${showUp?'Hide':'Show'} upcoming players</button>`;
+  if(showUp){const up=S.order.slice(S.i,S.i+15);h+=`<div class="card"><div class="mut">Coming up next</div>${up.map((id,k)=>{const q=PL[id];return`<div>${k+1}. <b>${esc(q.n)}</b> <span class="mut">${ROLE[q.r]}${q.o?' · overseas':''} · base ${cr(base(q))} · ${S.round==2?'Accelerated':setName(S.i+k)}</span></div>`}).join('')||'<div class="mut">No more players.</div>'}</div>`}
+  h+=`<div class="card wrap"><table><tr><th>Team</th><th>Purse</th><th>Squad</th><th>OS</th></tr>${Object.keys(S.teams).map(t=>{const x=S.teams[t];return`<tr${t===mt?' style="font-weight:700"':''}><td style="color:${TEAMS[t][1]}">${t}<div class="mut">${esc(x.name)}</div></td><td>${cr(x.bud)}</td><td>${x.sq.length}/${m.max}</td><td>${x.os}/${m.os}</td></tr>`}).join('')}</table></div>`;
+  if(mt)h+=`<div class="card"><div class="mut">Your squad</div>${S.teams[mt].sq.map(s=>`<div>${esc(PL[s.id].n)} <span class="mut">${cr(s.pr)}</span></div>`).join('')||'-'}</div>`;
+  return h;
+}
+function result(){
+  const ids=Object.keys(S.teams).map(t=>({t,r:rate(S.teams[t])})).sort((a,b)=>b.r.score-a.r.score);
+  return`<h1>🏆 Auction over</h1>${ids.map((x,i)=>{const T=S.teams[x.t];return`<div class="card"><div class="big" style="color:${TEAMS[x.t][1]}">#${i+1} ${TEAMS[x.t][0]}</div><div>${esc(T.name)} · Score <b>${x.r.score}/100</b> · ${x.r.grade}</div><div class="mut">Squad quality ${x.r.q||0} · Star: ${esc(x.r.best)} · Purse left ${cr(T.bud)}</div>${x.r.gaps.length?`<div>⚠ Needs: ${x.r.gaps.join(', ')}</div>`:'<div>✅ Balanced: openers, middle order, finishers, pace and spin covered</div>'}<div class="mut">${T.sq.map(s=>esc(PL[s.id].n)+' ('+PL[s.id].r+', '+cr(s.pr)+')').join(' · ')}</div></div>`}).join('')}
+<button style="width:100%" onclick="analyst()">Ask the AI analyst</button><div class="card" id="ai" style="white-space:pre-wrap">Tap the button for expert commentary.</div><button class="alt" onclick="leave()">Back to home</button>`;
+}
+init();
+</script></body></html>
