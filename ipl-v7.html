@@ -499,7 +499,7 @@ async function init(){
   try{sampleFn=await claude.use('sample')}catch(e){}
   await connectFb();
   if(db){subs.push(db.collection('rooms').where('pub','==',true).onSnapshot(s=>{pubList=s.docs.map(d=>d.data()).filter(x=>x.stage!=='done'&&Date.now()-x.ts<6*36e5);if(!S)render()},()=>{}))}
-  render();setTimeout(prefetchAll,1500);setInterval(tick,400);setInterval(hb,4000);setInterval(()=>{const e=document.getElementById('tm');if(e&&S&&S.cur)e.textContent=Math.max(0,Math.ceil(rem(S.cur)/1000))+'s';const f=document.getElementById('bf');if(f)f.style.width=Math.max(0,Math.min(100,rem(S.cur)/TT()))+'%'},250);
+  render();setInterval(tick,400);setInterval(hb,4000);setTimeout(()=>batchPhotos(PL).then(()=>{if(typeof render=='function')render()}),1500);setInterval(()=>{const e=document.getElementById('tm');if(e&&S&&S.cur)e.textContent=Math.max(0,Math.ceil(rem(S.cur)/1000))+'s';const f=document.getElementById('bf');if(f)f.style.width=Math.max(0,Math.min(100,rem(S.cur)/TT()))+'%'},250);
 }
 async function enableOnline(){
   try{const P=await claude.use('permissions');if(P)await P.request()}catch(e){}
@@ -642,45 +642,32 @@ function analyst(){
   el.textContent=o;
 }
 const ALIAS={'T Natarajan':'Thangarasu Natarajan','KS Bharat':'Srikar Bharat','Sai Sudharsan':'B. Sai Sudharsan','N Jagadeesan':'Narayan Jagadeesan','KC Cariappa':'K. C. Cariappa','Abdul Samad':'Abdul Samad (cricketer)','Suyash Sharma':'Suyash Sharma (cricketer)','Mukesh Kumar':'Mukesh Kumar (cricketer)','Shahrukh Khan':'Shahrukh Khan (cricketer)','Mohammed Azharuddeen':'Mohammed Azharuddeen (cricketer)','Mayank Yadav':'Mayank Yadav (cricketer)','Ashwani Kumar':'Ashwani Kumar (cricketer)','Prince Yadav':'Prince Yadav (cricketer)'};
-
-
 function savePH(){try{const o={};for(const k in PH)if(!/^data:/.test(PH[k]))o[k]=PH[k];localStorage.setItem('ph',JSON.stringify(o))}catch(e){}}
-function showPH(p,u){document.querySelectorAll('.ph[data-pid="'+p.id+'"]').forEach(el=>{if(!el.querySelector('img')){const i=new Image();i.referrerPolicy='no-referrer';i.onload=()=>el.prepend(i);i.src=u}})}
-async function batchPhotos(names){
-  const out={};
-  for(let i=0;i<names.length;i+=40){
-    const ch=names.slice(i,i+40);
+async function batchPhotos(list,onProg){
+  const need=list.filter(p=>!PH[p.id]),N=20;
+  for(let i=0;i<need.length;i+=N){
+    const ch=need.slice(i,i+N),titles=[];
+    ch.forEach(p=>{const nm=ALIAS[p.n]||p.n,b=nm.replace(/ \(cricketer\)$/,'');titles.push(nm,b+' (cricketer)')});
     try{
-      const j=await wj('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages|description&piprop=thumbnail&pithumbsize=300&titles='+encodeURIComponent(ch.join('|')));
-      if(j&&j.query){
-        const mp={},pg={};
-        (j.query.normalized||[]).forEach(x=>mp[x.from]=x.to);(j.query.redirects||[]).forEach(x=>mp[x.from]=x.to);
-        Object.values(j.query.pages||{}).forEach(p=>pg[p.title]=p);
-        ch.forEach(n=>{let t=mp[n]||n;t=mp[t]||t;const p=pg[t];if(p&&p.thumbnail&&/cricket/i.test(p.description||''))out[n]=p.thumbnail.source});
-      }
+      const j=await wj('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages|description&piprop=thumbnail&pithumbsize=300&titles='+encodeURIComponent([...new Set(titles)].join('|')));
+      const q=j&&j.query;
+      if(q){const nrm={},red={},by={};
+        (q.normalized||[]).forEach(x=>nrm[x.from]=x.to);(q.redirects||[]).forEach(x=>red[x.from]=x.to);
+        Object.values(q.pages||{}).forEach(pg=>by[pg.title]=pg);
+        ch.forEach(p=>{const nm=ALIAS[p.n]||p.n,b=nm.replace(/ \(cricketer\)$/,'');
+          for(const t of [nm,b+' (cricketer)']){let k=nrm[t]||t;k=red[k]||k;const pg=by[k];if(pg&&pg.thumbnail&&/cricket/i.test(pg.description||'')){PH[p.id]=pg.thumbnail.source;break}}})}
     }catch(e){}
-    await new Promise(z=>setTimeout(z,500));
-  }
-  return out;
-}
-let pfDone=false;
-async function prefetchAll(){
-  if(pfDone)return;pfDone=true;
-  let q=PL.filter(p=>!PH[p.id]);if(q.length<8)return;
-  const nm=p=>(ALIAS[p.n]||p.n).replace(/ \(cricketer\)$/,'');
-  for(const suf of ['',' (cricketer)']){
-    if(!q.length)break;
-    const r=await batchPhotos(q.map(p=>nm(p)+suf));
-    q.forEach(p=>{const u=r[nm(p)+suf];if(u){PH[p.id]=u;showPH(p,u)}});
-    savePH();q=q.filter(p=>!PH[p.id]);
+    savePH();if(onProg)onProg(Math.min(i+N,need.length),need.length);
+    await new Promise(z=>setTimeout(z,600));
   }
 }
 async function checkPhotos(){
-  pfDone=false;await prefetchAll();const q=PL.filter(p=>!PH[p.id]),miss=[];let k=0,n=0;
   const up=t=>{PCT=t;const e=document.getElementById('pc');if(e)e.textContent=t};
-  up('Checking '+q.length+' players...');
-  async function w(){while(k<q.length){const p=q[k++];tried.delete(p.id);await loadPhoto(p);await new Promise(z=>setTimeout(z,300));n++;if(!PH[p.id])miss.push(p);if(n%10==0)up('Checked '+n+' of '+q.length+'. Missing so far: '+miss.length)}}
-  await w();
+  up('Step 1: quick lookup...');
+  await batchPhotos(PL,(a,b)=>up('Step 1: '+a+' of '+b));
+  const q=PL.filter(p=>!PH[p.id]);let n=0;
+  for(const p of q){tried.delete(p.id);await loadPhoto(p);await new Promise(z=>setTimeout(z,500));n++;if(n%5==0)up('Step 2: '+n+' of '+q.length)}
+  const miss=PL.filter(p=>!PH[p.id]);
   up('Done. '+miss.length+' players have no photo:\n\n'+miss.map(p=>p.n).join('\n'));
 }
 /* ---------- UI ---------- */
