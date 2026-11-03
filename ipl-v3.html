@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IPL Auction Arena</title>
+<link rel="manifest" href="ipl-manifest-v3.json">
+<meta name="theme-color" content="#0e1120">
+<link rel="icon" href="ipl-icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+:root{--bg:#f4f7ff;--g1:#ffd9a8aa;--g2:#bcd4ffaa;--fg:#0e1533;--card:#ffffffe0;--mut:#5b6590;--acc:#ff6a00;--acc2:#ffb300;--line:#1d3b8b1f;--sh:0 10px 30px #1d3b8b24;--inp:#f0f4ff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[data-theme="dark"]{--bg:#070b1d;--g1:#ff6a0030;--g2:#2b5bff33;--fg:#eef1ff;--card:#111936d9;--mut:#8f9bd0;--acc:#ffb300;--acc2:#ff6a00;--line:#ffffff1a;--sh:0 10px 30px #0009;--inp:#0b1230}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(900px 500px at 0% -10%,var(--g1),transparent),radial-gradient(900px 500px at 100% 0,var(--g2),transparent),var(--bg);min-height:100vh}
+#app{max-width:1100px;margin:0 auto;padding:12px 14px 40px}
+.top{display:flex;align-items:center;justify-content:space-between;padding:6px 0 10px}
+.logo{display:flex;gap:10px;align-items:center;font-size:26px}.logo b{display:block;font-size:18px;line-height:1;letter-spacing:.3px}.logo small{font-size:11px;letter-spacing:4px;color:var(--acc);font-weight:800}
+.tools{display:flex;gap:8px}.ic{width:42px;height:42px;padding:0;border-radius:50%;background:var(--card);color:var(--fg);border:1px solid var(--line);box-shadow:var(--sh);font-size:18px}
+.hero{padding:18px 4px 8px}.hero h1{font-size:clamp(28px,6vw,46px);line-height:1.1;margin:0 0 8px;font-weight:900}.hero em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{margin:0;color:var(--mut);font-size:16px}
+h2{font-size:17px;margin:4px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin:12px 0;box-shadow:var(--sh);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.cols{display:grid;gap:0 16px}@media(min-width:900px){.cols{grid-template-columns:1.25fr 1fr;align-items:start}}
+.lb{display:block;font-size:12px;font-weight:700;color:var(--mut);margin:8px 0 4px;text-transform:uppercase;letter-spacing:1px}
+input,select,textarea{width:100%;font:inherit;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:var(--inp);color:var(--fg);outline:none}
+input:focus,select:focus{border-color:var(--acc)}
+.chk{display:flex;gap:10px;align-items:center;margin:12px 0;font-size:14px}.chk input{width:20px;height:20px;padding:0}
+button{font:inherit;font-weight:700;border:0;border-radius:14px;padding:13px 16px;cursor:pointer;color:var(--fg);background:var(--inp);transition:transform .08s}
+button:active{transform:scale(.97)}button:disabled{opacity:.4;cursor:not-allowed}
+.pri{color:#fff;background:linear-gradient(135deg,var(--acc2),var(--acc));box-shadow:0 8px 20px #ff6a004d}
+[data-theme="dark"] .pri{color:#1a1200}
+.alt{background:transparent;border:1px solid var(--line);color:var(--fg)}.sm{padding:8px 14px;font-size:13px}.wide{width:100%;margin:6px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1;min-width:120px}
+.mut{color:var(--mut);font-size:13px}.ctr{text-align:center;margin:8px 0}
+.rw{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.mode{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;margin:6px 0;border-radius:14px;background:var(--inp);font-size:13px}.mode b{color:var(--acc)}
+.chip{display:inline-block;padding:3px 10px;margin:2px 4px 2px 0;border-radius:99px;background:var(--inp);border:1px solid var(--line);font-size:12px;font-weight:700}
+.chip.os{color:#2b8cff}.chip.in{color:#10a35a}.chip.rt{background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;border:0}
+.code{font-size:38px;font-weight:900;letter-spacing:3px;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}@media(min-width:700px){.tiles{grid-template-columns:repeat(5,1fr)}}
+.tile{display:flex;flex-direction:column;gap:2px;text-align:left;color:#fff;padding:14px;border-radius:18px;background:linear-gradient(145deg,var(--tc),#000a);box-shadow:var(--sh);position:relative;overflow:hidden}
+.tile b{font-size:24px;font-weight:900}.tile span{font-size:12px;opacity:.9}.tile em{font-style:normal;font-size:12px;background:#0004;border-radius:99px;padding:2px 8px;align-self:flex-start;margin-top:6px}
+.tile.on{outline:3px solid var(--acc);outline-offset:2px}
+.stage{border-top:4px solid var(--tc,var(--acc))}
+.pl{display:flex;gap:16px;align-items:center;margin:8px 0}.pi{flex:1;min-width:0}.nm{font-size:clamp(22px,5vw,30px);font-weight:900;line-height:1.1;margin-bottom:4px}
+.ph{position:relative;width:56px;height:56px;border-radius:50%;overflow:hidden;flex:none;border:2px solid var(--line);background:var(--inp)}
+.ph.xl{width:120px;height:120px;border:4px solid var(--tc,var(--acc));box-shadow:0 8px 24px #0003}.ph.sm{width:40px;height:40px}
+.ph img,.ph svg.av{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top}
+.bidbox{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px}
+.amt{font-size:clamp(34px,9vw,52px);font-weight:900;line-height:1;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tmr span{font-size:26px;font-weight:900}
+.bar{height:8px;border-radius:9px;background:var(--inp);overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc2),var(--acc));transition:width .25s linear}
+.lead{margin:6px 0 10px}.bidbtn{width:100%;font-size:19px;padding:16px}
+.tgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tb{color:#fff;background:linear-gradient(145deg,var(--tc),#000a);padding:12px}
+.soldbox{text-align:center}.stamp{display:inline-block;font-size:30px;font-weight:900;letter-spacing:3px;padding:4px 18px;border:4px solid;border-radius:10px;transform:rotate(-6deg);margin:10px 0;animation:pop .5s}
+.stamp.s{color:#10b981}.stamp.u{color:#ef4444}
+@keyframes pop{0%{transform:scale(2) rotate(-6deg);opacity:0}100%{transform:scale(1) rotate(-6deg);opacity:1}}
+table{width:100%;border-collapse:collapse;font-size:13px}th{color:var(--mut);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px}td,th{padding:9px 4px;border-bottom:1px solid var(--line)}tr.cl{cursor:pointer}tr.me td{font-weight:800}
+.wrap{overflow-x:auto}
+.sq{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.sq>div:nth-child(2){flex:1;min-width:0}.sq b{display:block;font-size:14px}.pr{font-weight:800;white-space:nowrap}
+.feed div{padding:4px 0;border-bottom:1px solid var(--line);font-size:13px}
+.rank{display:flex;align-items:center;gap:12px}.rk{font-size:28px;font-weight:900;color:var(--acc)}
+.meter{height:10px;border-radius:9px;background:var(--inp);overflow:hidden;margin:6px 0}.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--acc2),var(--acc))}
+.toast{position:fixed;left:14px;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:#111;color:#fff;padding:12px;border-radius:14px;z-index:9;text-align:center;box-shadow:var(--sh)}
+</style></head><body><div id="app"></div><div id="toast" class="toast" style="display:none"></div>
+<script>
+const TEAMS={CSK:['Chennai Super Kings','#d9a400'],MI:['Mumbai Indians','#1d5fb8'],RCB:['Royal Challengers Bengaluru','#c62828'],KKR:['Kolkata Knight Riders','#5b2a86'],SRH:['Sunrisers Hyderabad','#e8590c'],DC:['Delhi Capitals','#1565c0'],PBKS:['Punjab Kings','#b71c1c'],RR:['Rajasthan Royals','#d81b8a'],GT:['Gujarat Titans','#1c3a5e'],LSG:['Lucknow Super Giants','#00838f']};
+const MODES={mega:{n:'Mega',max:25,bud:120,os:8},classic:{n:'Classic',max:11,bud:90,os:4},sprint:{n:'Sprint',max:5,bud:50,os:2}};
+const ROLE={O:'Opening batter',M:'Middle-order batter',W:'Wicketkeeper-batter',F:'Finisher',P:'Pace bowler',S:'Spin bowler',A:'All-rounder'};
+/* PLAYER LIST: Name,role,rating(0-99),o = overseas. You can edit/add lines here. */
+const RAW=`MS Dhoni,W,90,
+Virat Kohli,M,96,
+Rohit Sharma,O,92,
+Ruturaj Gaikwad,O,90,
+Jasprit Bumrah,P,97,
+Suryakumar Yadav,M,94,
+Hardik Pandya,A,91,
+Ravindra Jadeja,A,91,
+KL Rahul,W,92,
+Rishabh Pant,W,92,
+Shubman Gill,O,93,
+Yashasvi Jaiswal,O,93,
+Sanju Samson,W,92,
+Rashid Khan,S,95,o
+Travis Head,O,94,o
+Heinrich Klaasen,W,94,o
+Jos Buttler,W,93,o
+Phil Salt,O,90,o
+Sunil Narine,A,93,o
+Andre Russell,A,90,o
+Nicholas Pooran,W,91,o
+Pat Cummins,P,90,o
+Mitchell Starc,P,88,o
+Kuldeep Yadav,S,92,
+Yuzvendra Chahal,S,88,
+Mohammed Siraj,P,90,
+Arshdeep Singh,P,90,
+Varun Chakravarthy,S,91,
+Axar Patel,A,90,
+Shreyas Iyer,M,91,
+Abhishek Sharma,O,92,
+Tilak Varma,M,91,
+Rinku Singh,F,90,
+Shivam Dube,F,88,
+Trent Boult,P,89,o
+Ishan Kishan,W,86,
+Sai Sudharsan,O,88,
+Rajat Patidar,M,86,
+Devdutt Padikkal,O,83,
+Prabhsimran Singh,W,84,
+Priyansh Arya,O,82,
+Ayush Mhatre,O,80,
+Dewald Brevis,M,82,o
+Tim David,F,87,o
+Marcus Stoinis,A,85,o
+Glenn Maxwell,A,82,o
+Liam Livingstone,A,83,o
+Mitchell Marsh,A,84,o
+Jake Fraser-McGurk,O,78,o
+Faf du Plessis,O,82,o
+David Miller,F,84,o
+Aiden Markram,M,82,o
+Quinton de Kock,W,85,o
+Rahmanullah Gurbaz,W,80,o
+Kagiso Rabada,P,90,o
+Josh Hazlewood,P,89,o
+Jofra Archer,P,87,o
+Mohammed Shami,P,87,
+Bhuvneshwar Kumar,P,87,
+T Natarajan,P,84,
+Harshal Patel,P,84,
+Prasidh Krishna,P,86,
+Avesh Khan,P,82,
+Khaleel Ahmed,P,82,
+Deepak Chahar,P,83,
+Washington Sundar,A,84,
+Ravichandran Ashwin,S,83,
+Noor Ahmad,S,86,o
+Maheesh Theekshana,S,82,o
+Wanindu Hasaranga,S,80,o
+Nitish Kumar Reddy,A,78,
+Riyan Parag,M,80,
+Dhruv Jurel,W,78,
+Jitesh Sharma,W,76,
+Abhishek Porel,W,76,
+Karun Nair,M,74,
+Ajinkya Rahane,M,74,
+Manish Pandey,M,68,
+Shahrukh Khan,F,74,
+Sameer Rizvi,F,72,
+Ashutosh Sharma,F,74,
+Nehal Wadhera,M,74,
+Shashank Singh,F,78,
+Vijay Shankar,A,66,
+Venkatesh Iyer,A,78,
+Ramandeep Singh,F,72,
+Naman Dhir,F,72,
+Rahul Tripathi,M,70,
+Rahul Tewatia,F,76,
+Harpreet Brar,A,70,
+Shahbaz Ahmed,A,70,
+Krunal Pandya,A,78,
+Rachin Ravindra,A,80,o
+Sam Curran,A,82,o
+Moeen Ali,A,78,o
+Jacob Bethell,M,78,o
+Will Jacks,A,80,o
+Gerald Coetzee,P,74,o
+Lockie Ferguson,P,82,o
+Matheesha Pathirana,P,82,o
+Mustafizur Rahman,P,80,o
+Anrich Nortje,P,82,o
+Spencer Johnson,P,76,o
+Naveen-ul-Haq,P,74,o
+Tushar Deshpande,P,72,
+Harshit Rana,P,80,
+Mayank Yadav,P,78,
+Yash Dayal,P,74,
+Mukesh Kumar,P,74,
+Akash Deep,P,76,
+Vaibhav Arora,P,72,
+Umran Malik,P,68,
+Sandeep Sharma,P,72,
+Mohit Sharma,P,72,
+Mohsin Khan,P,72,
+Simarjeet Singh,P,66,
+Rasikh Salam,P,66,
+Yash Thakur,P,70,
+Kartik Tyagi,P,62,
+Chetan Sakariya,P,62,
+Ravi Bishnoi,S,80,
+Rahul Chahar,S,70,
+Suyash Sharma,S,72,
+Mayank Markande,S,68,
+Karn Sharma,S,62,
+Piyush Chawla,S,60,
+Digvesh Rathi,S,70,
+Vignesh Puthur,S,66,
+Manimaran Siddharth,S,66,
+Sai Kishore,S,74,
+Jayant Yadav,S,62,
+Vaibhav Suryavanshi,O,74,
+Angkrish Raghuvanshi,M,72,
+Sarfaraz Khan,M,66,
+Abdul Samad,F,68,
+Shubham Dubey,F,62,
+Atharva Taide,O,62,
+Anmolpreet Singh,M,60,
+Mayank Agarwal,O,66,
+Prithvi Shaw,O,68,
+Rovman Powell,F,76,o
+Shimron Hetmyer,F,80,o
+Romario Shepherd,A,76,o
+Jason Holder,A,70,o
+Sherfane Rutherford,F,74,o
+Alzarri Joseph,P,74,o
+Akeal Hosein,S,70,o
+Daryl Mitchell,A,74,o
+Kane Williamson,M,78,o
+Devon Conway,O,78,o
+Finn Allen,O,74,o
+Tim Seifert,W,72,o
+Mitchell Santner,S,74,o
+Matt Henry,P,76,o
+Kyle Jamieson,P,70,o
+Nathan Ellis,P,74,o
+Adam Zampa,S,74,o
+Ben Dwarshuis,P,62,o
+Sean Abbott,A,66,o
+Cameron Green,A,80,o
+Jamie Overton,A,70,o
+Reece Topley,P,68,o
+Adil Rashid,S,76,o
+Harry Brook,M,80,o
+Ben Duckett,O,72,o
+Joe Root,M,74,o
+Jonny Bairstow,W,76,o
+Tristan Stubbs,M,82,o
+Marco Jansen,A,80,o
+Lungi Ngidi,P,78,o
+Keshav Maharaj,S,70,o
+Tabraiz Shamsi,S,68,o
+Reeza Hendricks,O,74,o
+Sikandar Raza,A,72,o
+Dasun Shanaka,A,68,o
+Shikhar Dhawan,O,76,
+Dinesh Karthik,W,70,
+Ambati Rayudu,M,66,
+Wriddhiman Saha,W,66,
+Mandeep Singh,M,58,
+Nitish Rana,M,76,
+KS Bharat,W,66,
+Anuj Rawat,W,64,
+Kumar Kushagra,W,64,
+Robin Minz,W,68,
+Vishnu Vinod,W,60,
+Priyam Garg,M,60,
+Abhinav Manohar,M,64,
+Ayush Badoni,M,74,
+Aniket Verma,F,66,
+Shaik Rasheed,M,66,
+Sachin Baby,M,58,
+Arshad Khan,A,60,
+Lalit Yadav,A,62,
+Mahipal Lomror,A,62,
+Deepak Hooda,A,70,
+Shivam Mavi,P,64,
+Ishant Sharma,P,64,
+Umesh Yadav,P,66,
+Navdeep Saini,P,64,
+Jaydev Unadkat,P,64,
+Siddharth Kaul,P,56,
+Barinder Sran,P,58,
+Basil Thampi,P,56,
+Kuldeep Sen,P,66,
+Akash Madhwal,P,64,
+Arjun Tendulkar,P,56,
+Vyshak Vijaykumar,P,68,
+Gurnoor Brar,P,60,
+Anshul Kamboj,P,68,
+Ashwani Kumar,P,64,
+Shardul Thakur,A,78,
+Mukesh Choudhary,P,64,
+Prince Yadav,P,60,
+Vidwath Kaverappa,P,66,
+Jalaj Saxena,S,58,
+Shreyas Gopal,S,62,
+Murugan Ashwin,S,60,
+Amit Mishra,S,60,
+Kumar Kartikeya,S,66,
+Manav Suthar,S,66,
+Tanush Kotian,S,62,
+Suryansh Shedge,A,64,
+Musheer Khan,A,66,
+Smaran Ravichandran,M,62,
+Rishi Dhawan,A,58,
+KC Cariappa,S,56,
+Pradeep Sangwan,P,52,
+Dhawal Kulkarni,P,54,
+Ankit Rajpoot,P,54,
+Allah Ghazanfar,S,72,o
+Mujeeb Ur Rahman,S,70,o
+Fazalhaq Farooqi,P,72,o
+Azmatullah Omarzai,A,74,o
+Ibrahim Zadran,O,66,o
+Mohammad Nabi,A,68,o
+Sandeep Lamichhane,S,64,o
+Tim Southee,P,72,o
+Adam Milne,P,72,o
+Jimmy Neesham,A,66,o
+Glenn Phillips,W,76,o
+Mark Chapman,M,62,o
+Michael Bracewell,A,68,o
+Ish Sodhi,S,62,o
+David Warner,O,82,o
+Steve Smith,M,70,o
+Aaron Finch,O,66,o
+Jason Behrendorff,P,70,o
+Josh Inglis,W,78,o
+Matthew Wade,W,68,o
+Nathan Coulter-Nile,P,66,o
+Kane Richardson,P,66,o
+Daniel Sams,A,62,o
+Riley Meredith,P,66,o
+Jhye Richardson,P,72,o
+Ashton Agar,S,60,o
+Marnus Labuschagne,M,64,o
+Cooper Connolly,A,66,o
+Xavier Bartlett,P,70,o
+Alex Carey,W,66,o
+Jason Roy,O,70,o
+Dawid Malan,M,64,o
+Liam Dawson,A,60,o
+Chris Woakes,A,68,o
+Mark Wood,P,76,o
+Tom Curran,P,68,o
+Sam Billings,W,66,o
+Ben Stokes,A,82,o
+Rilee Rossouw,M,66,o
+Luke Wood,P,64,o
+Gus Atkinson,P,68,o
+Jamie Smith,W,72,o
+Rassie van der Dussen,M,70,o
+Wayne Parnell,P,62,o
+Corbin Bosch,A,64,o
+Kwena Maphaka,P,68,o
+Ryan Rickelton,W,78,o
+David Bedingham,M,60,o
+Nandre Burger,P,64,o
+Lizaad Williams,P,62,o
+Donovan Ferreira,F,62,o
+Evin Lewis,O,70,o
+Shai Hope,W,72,o
+Odean Smith,A,64,o
+Obed McCoy,P,66,o
+Kyle Mayers,A,68,o
+Brandon King,O,68,o
+Fabian Allen,A,60,o
+Roston Chase,A,60,o
+Kusal Mendis,W,68,o
+Pathum Nissanka,O,68,o
+Dushmantha Chameera,P,66,o
+Dilshan Madushanka,P,66,o
+Kamindu Mendis,A,70,o
+Charith Asalanka,M,62,o
+Nuwan Thushara,P,66,o
+Angelo Mathews,A,60,o
+Shakib Al Hasan,A,70,o
+Litton Das,W,66,o
+Taskin Ahmed,P,62,o
+Himmat Singh,M,56,
+Vivrant Sharma,A,60,
+Yudhvir Singh,P,58,
+Raj Bawa,A,58,
+Shivam Shukla,S,56,
+Rajvardhan Hangargekar,P,58,
+Sanvir Singh,A,60,
+Harnoor Singh,M,58,
+Aryan Juyal,W,60,
+Manan Vohra,O,58,
+Kedar Jadhav,M,58,
+Kamlesh Nagarkoti,P,56,
+Himanshu Sharma,S,56,
+Pravin Dubey,S,56,
+Anukul Roy,S,58,
+Gulbadin Naib,A,60,o
+Tom Latham,W,62,o
+Mohammad Shahzad,W,58,o
+Dominic Drakes,A,58,o
+Matthew Forde,P,58,o
+Daniel Worrall,P,60,o
+Tymal Mills,P,64,o
+Chris Jordan,P,66,o
+Olly Stone,P,62,o
+Tom Banton,W,66,o
+Mitchell Owen,A,70,o
+Johnson Charles,W,60,o
+Chamika Karunaratne,A,56,o
+Mahedi Hasan,S,58,o
+Bhanuka Rajapaksa,M,60,o
+Jos Little,P,68,o
+Harry Tector,M,60,o
+Shamar Joseph,P,68,o
+Brydon Carse,P,66,o
+Ottniel Baartman,P,62,o
+Kyle Verreynne,W,60,o
+Moises Henriques,A,56,o
+Mark Adair,P,58,o
+Yash Dhull,M,60,
+Pratham Singh,M,56,
+Ricky Bhui,M,56,
+Sheldon Jackson,W,56,
+Akash Singh,P,58,
+Sakib Hussain,P,56,
+Swapnil Singh,S,52,
+Rishad Hossain,S,60,o
+Mayank Dagar,S,56,
+Lance Morris,P,64,o
+Ben Cutting,A,56,o
+Hardus Viljoen,P,56,o
+Tom Kohler-Cadmore,O,58,o
+Hanuma Vihari,M,58,
+Satyanarayana Raju,P,58,
+Krishnappa Gowtham,A,56,
+Ishan Porel,P,58,
+Varun Aaron,P,52,
+Shams Mulani,A,56,
+Atharva Ankolekar,A,52,
+Jagadeesha Suchith,S,52,
+Shubham Garhwal,F,52,
+Vishnu Solanki,A,50,
+Swastik Chikara,M,52,
+Vansh Bedi,W,50,
+Tripurana Vijay,A,50,
+Raghu Sharma,A,50,
+Mohammed Azharuddeen,W,50,
+Salil Arora,W,54,
+Ashok Sharma,P,50,
+Sushant Mishra,P,58,
+Gurkeerat Singh Mann,A,52,
+Baba Indrajith,M,56,
+N Jagadeesan,W,66,
+Lhuan-dre Pretorius,W,66,o
+Karim Janat,A,60,o
+Kusal Perera,W,64,o
+Dunith Wellalage,S,58,o
+Lahiru Kumara,P,56,o
+Mehidy Hasan Miraz,A,62,o
+Towhid Hridoy,M,56,o
+Will Young,O,56,o
+Ben Sears,P,54,o
+Jacob Duffy,P,66,o
+Matthew Short,O,68,o
+Josh Philippe,W,60,o
+Aaron Hardie,A,58,o
+Matthew Kuhnemann,S,62,o
+Tanveer Sangha,S,60,o
+Jake Weatherald,O,56,o
+Ben McDermott,W,58,o
+Will Sutherland,A,58,o
+Rehan Ahmed,S,62,o
+Josh Tongue,P,64,o
+David Willey,A,60,o
+Wiaan Mulder,A,66,o
+George Linde,A,56,o
+Temba Bavuma,M,52,o
+Dwaine Pretorius,A,56,o
+Andile Phehlukwayo,A,52,o
+Oshane Thomas,P,56,o
+Gudakesh Motie,S,56,o
+Blessing Muzarabani,P,64,o
+Richard Ngarava,P,52,o
+Ryan Burl,A,50,o`;
+const PL=RAW.trim().split('\n').map((l,i)=>{const[n,r,q,o]=l.split(',');return{id:i,n,r,q:+q,o:o==='o'}});
+const base=p=>p.q>=90?2:p.q>=82?1.5:p.q>=74?1:p.q>=66?.5:.25;
+const inc=b=>b<5?.25:b<10?.5:1;
+const cr=n=>'₹'+(+n).toFixed(2).replace(/\.?0+$/,'')+' Cr';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return`hsl(${h} 55% 42%)`};
+var showUp=false;
+const av=p=>{const sk=['#f1c9a5','#d9a273','#b87a4b','#8d5a36'][p.id%4],jc={O:'#1d5fb8',M:'#c62828',W:'#1b9e55',F:'#e8590c',P:'#5b2a86',S:'#00838f',A:'#d9a400'}[p.r];return`<svg class="av" viewBox="0 0 100 100" style="background:${hue(p.n)};overflow:hidden"><path d="M14 100q0-30 36-30t36 30z" fill="${jc}"/><circle cx="50" cy="42" r="19" fill="${sk}"/><path d="M29 36a21 21 0 0 1 42 0z" fill="${jc}"/><rect x="26" y="35" width="48" height="5" rx="2" fill="${jc}"/><circle cx="43" cy="45" r="2" fill="#222"/><circle cx="57" cy="45" r="2" fill="#222"/><path d="M43 52q7 5 14 0" stroke="#222" fill="none" stroke-width="2"/></svg>`};
+function buildOrder(){const s=PL.map(p=>({id:p.id,k:p.q+Math.random()*.9})).sort((a,b)=>b.k-a.k).map(x=>x.id);let o=[];for(let i=0;i<s.length;i+=35)o=o.concat(shuf(s.slice(i,i+35)));return o}
+const setName=i=>i<35?'Marquee Set':'Set '+Math.floor(i/35);
+
+const DEFAULT_CFG={apiKey:"AIzaSyD02RcXR5GP8kwfAfCydhnlSZOLjYxrTG0",authDomain:"proto-auction.firebaseapp.com",projectId:"proto-auction",storageBucket:"proto-auction.firebasestorage.app",messagingSenderId:"544846060791",appId:"1:544846060791:web:2041128ec4c41ba6e887f2",measurementId:"G-C5TMXG9W98"};
+window.claude=window.claude||{use:async()=>null};
+let OFF=0;const rem=c=>S&&S.paused?(S.pr||0):c.end+OFF-Date.now();const TT=()=>((S&&S.bt||10)*1000+5000)/100;const btOpts=()=>[10,8,5,3].map(v=>`<option value="${v}" ${v==(S.bt||10)?'selected':''}>${v}s per bid${v==10?' (default)':''}</option>`).join('');
+let db=null,uid='u'+Math.random().toString(36).slice(2,9),NAME='',S=null,M={},local=false,subs=[],pubList=[],sampleFn=null,mute=false,tt;
+try{NAME=localStorage.getItem('nm')||''}catch(e){}
+const toast=t=>{const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',2800)};
+function speak(t){try{if(mute||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/₹|Cr/g,m=>m=='₹'?'':' crore'));u.rate=1.02;speechSynthesis.speak(u)}catch(e){}}
+async function init(){
+  try{const U=await claude.use('user');if(U&&U.id)uid=await U.id()}catch(e){}
+  try{db=await claude.use('db')}catch(e){}
+  try{sampleFn=await claude.use('sample')}catch(e){}
+  await connectFb();
+  if(db){subs.push(db.collection('rooms').where('pub','==',true).onSnapshot(s=>{pubList=s.docs.map(d=>d.data()).filter(x=>x.stage!=='done'&&Date.now()-x.ts<6*36e5);if(!S)render()},()=>{}))}
+  render();setInterval(tick,400);setInterval(hb,4000);setInterval(()=>{const e=document.getElementById('tm');if(e&&S&&S.cur)e.textContent=Math.max(0,Math.ceil(rem(S.cur)/1000))+'s';const f=document.getElementById('bf');if(f)f.style.width=Math.max(0,Math.min(100,rem(S.cur)/TT()))+'%'},250);
+}
+async function enableOnline(){
+  try{const P=await claude.use('permissions');if(P)await P.request()}catch(e){}
+  try{const U=await claude.use('user');if(U&&U.id)uid=await U.id()}catch(e){}
+  try{db=await claude.use('db')}catch(e){}
+  try{sampleFn=await claude.use('sample')}catch(e){}
+  if(db){subs.push(db.collection('rooms').where('pub','==',true).onSnapshot(s=>{pubList=s.docs.map(d=>d.data()).filter(x=>x.stage!=='done'&&Date.now()-x.ts<6*36e5);if(!S)render()},()=>{}));toast('Online play is ON. Tap Create again.')}
+  else toast('Still locked. Open the page menu at the top, choose Permissions, allow it, then reopen.');
+  render();
+}
+
+async function connectFb(){
+  try{let id=localStorage.getItem('uid');if(!id){id='u'+Math.random().toString(36).slice(2,10);localStorage.setItem('uid',id)}uid=id}catch(e){}
+  try{const c=DEFAULT_CFG;if(c&&window.firebase){if(!firebase.apps.length)firebase.initializeApp(c);db=firebase.firestore();
+    try{const k=await firebase.auth().signInAnonymously();uid=k.user.uid}catch(e){toast('Online sign-in is off. Enable Anonymous in Firebase Authentication.')}}}catch(e){toast('Firebase error: '+(e.message||e))}
+}
+function saveCfg(){
+  const t=document.getElementById('fb').value,c={};
+  for(const m of t.matchAll(/(\w+)\s*:\s*["']([^"']+)["']/g))c[m[1]]=m[2];
+  if(!c.apiKey||!c.projectId)return toast('That does not look right. Copy the whole firebaseConfig block.');
+  try{localStorage.setItem('fbcfg',JSON.stringify(c))}catch(e){}
+  location.reload();
+}
+async function enableOnline(){toast('Paste your Firebase config in the box below, then tap Save.')}
+function save(){NAME=(((document.getElementById('nm')||{}).value||NAME||'Player')+'').trim().slice(0,20)||'Player';try{localStorage.setItem('nm',NAME)}catch(e){}}
+const isHost=()=>local||(S&&S.host===uid);
+function push(){if(S){S.ts=Date.now();S.hb=S.hn=Date.now();OFF=0;if(!local&&db)db.doc('rooms/'+S.code).set(S).catch(e=>toast('Save error: '+(e.message||e)))}render()}
+function unsubAll(keep){subs.slice(keep||0).forEach(f=>f());subs=subs.slice(0,keep||0)}
+
+/* ---------- rooms ---------- */
+async function create(){
+  save();if(!db)return enableOnline();
+  const mode=document.getElementById('md').value,pub=document.getElementById('pb').checked;
+  const snap=await db.collection('rooms').where('ts','>',Date.now()-6*36e5).limit(100).get(),used=new Set(),now=Date.now();
+  snap.docs.forEach(d=>{const x=d.data();if(now-x.ts<6*36e5&&x.stage!=='done')used.add(+d.id.slice(1,4));else db.doc('rooms/'+d.id).delete().catch(()=>{})});
+  const free=[];for(let i=1;i<=100;i++)if(!used.has(i))free.push(i);
+  if(!free.length)return toast('All 100 rooms are busy. Try again later.');
+  const n=free[Math.random()*free.length|0],code='R'+String(n).padStart(3,'0')+'-'+(1000+Math.random()*9000|0);
+  S={code,mode,pub,host:uid,hostName:NAME,stage:'lobby',ts:now,bt:10,uids:[uid],teams:{}};M={};local=false;
+  await db.doc('rooms/'+code).set(S);watch(code);render();
+}
+function watch(code){
+  try{localStorage.setItem('lr',code)}catch(e){}
+  unsubAll(1);
+  subs.push(db.collection('members').where('code','==',code).onSnapshot(s=>{M={};s.docs.forEach(d=>{const x=d.data();M[x.team]=x});render()},()=>{}));
+  subs.push(db.collection('bids').where('code','==',code).onSnapshot(s=>s.docChanges().forEach(c=>{if(c.type!=='removed'&&isHost()){const d=c.doc.data();if(S.teams&&S.teams[d.team]&&S.teams[d.team].uid===d.uid)accept(d.team,d.pid,d.amt)}}),()=>{}));
+  subs.push(db.doc('rooms/'+code).onSnapshot(s=>{if(!s.exists){toast('Room closed');return leave()}const d=s.data();if(S&&S.host===uid&&d.host===uid)return;const was=S&&S.msg;S=d;OFF=S.hn?Date.now()-S.hn:0;if(S.msg&&S.msg!==was&&S.stage==='live')speak(S.msg);render()},()=>{}));
+}
+async function join(code){
+  save();if(!db)return enableOnline();
+  code=(code||document.getElementById('jc').value).trim().toUpperCase();
+  const d=await db.doc('rooms/'+code).get();
+  if(!d.exists)return toast('No room with that code');
+  S=d.data();M={};local=false;watch(code);render();
+}
+function leave(){try{localStorage.removeItem('lr')}catch(e){}unsubAll(1);S=null;M={};local=false;render()}
+function offline(){save();S={code:'LOCAL',mode:document.getElementById('md').value,pub:false,host:uid,stage:'lobby',teams:{}};M={};local=true;render()}
+async function claim(t){
+  if(local){if(M[t])delete M[t];else M[t]={team:t,uid:'local',name:t};return render()}
+  if(M[t]&&M[t].uid!==uid)return toast('Team already taken');
+  save();const mine=Object.values(M).filter(x=>x.uid===uid);
+  for(const x of mine)await db.doc('members/'+S.code+'_'+x.team).delete();
+  if(!(M[t]&&M[t].uid===uid))await db.doc('members/'+S.code+'_'+t).set({code:S.code,team:t,uid,name:NAME||'Player'});
+}
+function setBt(v){S.bt=+v;push()}
+function pause(){if(!isHost()||S.paused)return;S.paused=true;S.pr=(S.cur?S.cur.end:S.wait)-Date.now();S.msg='Auction paused by host';push()}
+function resume(){if(!isHost()||!S.paused)return;S.paused=false;const n=Date.now()+Math.max(500,S.pr||0);if(S.cur)S.cur.end=n;else S.wait=n;S.msg='Auction resumed';push()}
+function hb(){
+  if(!S||local||!db||S.stage==='done'||S.stage==='lobby')return;
+  const n=Date.now();
+  if(S.host===uid){S.hb=S.hn=S.ts=n;db.doc('rooms/'+S.code).update({hb:n,hn:n,ts:n}).catch(()=>{});return}
+  const rk=(S.uids||[]).filter(u=>u!==S.host).indexOf(uid);
+  if(rk<0||S.stage!=='live')return;
+  if(n-(S.hb+OFF)>20000+rk*6000){if(S.cur)S.cur.end+=OFF;if(S.wait)S.wait+=OFF;OFF=0;S.host=uid;S.hostName=NAME;toast('You are now the host');push()}
+}
+function setMode(v){S.mode=v;push()}function setPub(v){S.pub=v;push()}
+function start(){
+  const ids=Object.keys(M);if(ids.length<2)return toast('Need at least 2 teams');
+  const m=MODES[S.mode];S.teams={};ids.forEach(t=>S.teams[t]={uid:M[t].uid,name:M[t].name,bud:m.bud,sq:[],os:0});
+  S.uids=[...new Set([S.host,...ids.map(t=>S.teams[t].uid)])];S.bt=S.bt||10;S.order=buildOrder();S.i=0;S.round=1;S.unsold=[];S.log=[];S.cur=null;S.wait=Date.now()+2500;S.stage='live';S.msg='Welcome to the IPL auction! Let the bidding begin.';speak(S.msg);push();
+}
+/* ---------- auction engine (runs on host) ---------- */
+function can(t,p,amt){const m=MODES[S.mode];return t.sq.length<m.max&&(!p.o||t.os<m.os)&&t.bud-amt>=(m.max-t.sq.length-1)*.25-1e-9}
+function tick(){if(!S||!isHost()||S.stage!=='live'||S.paused)return;const n=Date.now();if(S.cur){if(n>S.cur.end)settle()}else if(n>S.wait)nextP()}
+function nextP(){
+  const m=MODES[S.mode];
+  if(Object.values(S.teams).every(t=>t.sq.length>=m.max))return finish();
+  if(S.i>=S.order.length){if(S.round==1&&S.unsold.length){S.round=2;S.order=shuf(S.unsold);S.unsold=[];S.i=0;S.log.unshift('Accelerated round: unsold players return!')}else return finish()}
+  const pid=S.order[S.i++],p=PL[pid];
+  if(!Object.values(S.teams).some(t=>can(t,p,base(p)))){if(S.round==1)S.unsold.push(pid);return nextP()}
+  S.cur={pid,bid:base(p),tm:null,end:Date.now()+(S.bt||10)*1000+5000};
+  S.msg=`Next up: ${p.n}, ${ROLE[p.r]}${p.o?', overseas':''}. Base price ${cr(base(p))}.`;speak(S.msg);push();
+}
+function settle(){
+  const c=S.cur,p=PL[c.pid];
+  if(c.tm){const T=S.teams[c.tm];T.bud=+(T.bud-c.bid).toFixed(2);T.sq.push({id:p.id,pr:c.bid});if(p.o)T.os++;S.msg=`SOLD! ${p.n} to ${TEAMS[c.tm][0]} for ${cr(c.bid)}`}
+  else{if(S.round==1)S.unsold.push(p.id);S.msg=`${p.n} goes unsold`}
+  S.last={pid:c.pid,tm:c.tm||'',pr:c.bid};S.log.unshift(S.msg);S.log=S.log.slice(0,8);S.cur=null;S.wait=Date.now()+3500;speak(S.msg);push();
+}
+function finish(){S.stage='done';S.cur=null;S.msg='The auction is over!';speak(S.msg);push()}
+function accept(tm,pid,amt){
+  if(!S||!isHost()||S.stage!=='live'||S.paused)return;const c=S.cur;if(!c||c.pid!==pid||c.tm===tm)return;
+  const need=c.tm?+(c.bid+inc(c.bid)).toFixed(2):c.bid;if(Math.abs(amt-need)>1e-6)return;
+  const T=S.teams[tm];if(!T||!can(T,PL[pid],need))return;
+  c.bid=need;c.tm=tm;c.end=Date.now()+(S.bt||10)*1000;push();
+}
+function need(){const c=S.cur;return c.tm?+(c.bid+inc(c.bid)).toFixed(2):c.bid}
+function bid(tm){
+  if(!S||!S.cur)return;if(S.paused)return toast('Auction is paused');const a=need();
+  if(local||S.host===uid)accept(tm,S.cur.pid,a);
+  else db.doc('bids/'+S.code+'_'+tm).set({code:S.code,team:tm,uid:uid,pid:S.cur.pid,amt:a,n:Date.now()}).catch(e=>toast('Bid failed'));
+}
+const myTeam=()=>Object.keys(S.teams||{}).find(t=>S.teams[t].uid===uid);
+/* ---------- team rating ---------- */
+function rate(t){
+  const sq=t.sq.map(s=>PL[s.id]);if(!sq.length)return{score:0,gaps:['no players'],best:'-',grade:'-'};
+  const big=sq.length>=11,nd=big?{O:2,M:2,F:1,P:3,S:1,A:1}:{O:1,M:1,F:1,P:1,S:1,A:1};
+  const grp=p=>p.r==='W'?'M':p.r,gaps=[];let cov=0;
+  for(const g in nd){const c=sq.filter(p=>grp(p)===g).length;cov+=Math.min(c,nd[g])/nd[g];if(c<nd[g])gaps.push(({O:'opener',M:'middle order',F:'finisher',P:'pace bowling',S:'spin',A:'all-rounder'})[g])}
+  cov=Math.min(1,cov/6/Math.min(1,sq.length/6));
+  const q=sq.reduce((a,p)=>a+p.q,0)/sq.length,score=Math.round(q*.6+cov*40),best=sq.slice().sort((a,b)=>b.q-a.q)[0].n;
+  return{score,gaps,best,q:Math.round(q),grade:score>=88?'A+ Champions material':score>=80?'A Title contenders':score>=72?'B Playoff team':score>=64?'C Mid-table':'D Rebuild needed'};
+}
+async function analyst(){
+  const el=document.getElementById('ai');if(!sampleFn){el.textContent='AI analyst is not available here.';return}
+  el.textContent='Analyst is thinking...';
+  const d=Object.keys(S.teams).map(t=>`${TEAMS[t][0]} (${S.teams[t].name}): `+S.teams[t].sq.map(s=>`${PL[s.id].n} [${ROLE[PL[s.id].r]}] ${cr(s.pr)}`).join(', ')).join('\n');
+  try{const r=await sampleFn('You are an IPL cricket analyst. Based on each squad below, using your knowledge of the players’ career records and recent form, write 2 punchy sentences per team about strengths and weaknesses (openers, middle order, finishers, pace, spin), then name the best team overall. Squads:\n'+d,{cache:false});el.textContent=r.text}catch(e){el.textContent='Analyst unavailable right now.'}
+}
+/* ---------- UI ---------- */
+(function(){let t='';try{t=localStorage.getItem('th')||''}catch(e){}if(!t)t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.dataset.theme=t})();
+function theme(){const d=document.documentElement,n=d.dataset.theme==='dark'?'light':'dark';d.dataset.theme=n;try{localStorage.setItem('th',n)}catch(e){}}
+function copyCode(){try{navigator.clipboard.writeText(S.code).then(()=>toast('Room code copied'))}catch(e){toast(S.code)}}
+let openT='';
+const PH={};try{Object.assign(PH,JSON.parse(localStorage.getItem('ph')||'{}'))}catch(e){}
+const tried=new Set();
+const ph=(p,c)=>`<div class="ph ${c||''}" data-pid="${p.id}">${PH[p.id]?`<img src="${PH[p.id]}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:''}${av(p)}</div>`;
+async function wj(u){const r=await fetch(u);return r.ok?r.json():null}
+async function findPhoto(p){
+  try{const j=await wj('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=5&gsrsearch='+encodeURIComponent(p.n+' cricketer')+'&prop=pageimages|description&piprop=thumbnail&pithumbsize=300');
+    const pg=Object.values((j&&j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index),last=p.n.split(' ').pop().toLowerCase();
+    for(const x of pg){if(x.thumbnail&&x.title.toLowerCase().includes(last)&&/cricket/i.test(x.description||''))return x.thumbnail.source}}catch(e){}
+  const W='https://en.wikipedia.org/api/rest_v1/page/summary/',ok=j=>j&&j.thumbnail&&/cricket/i.test((j.description||'')+' '+(j.extract||''));
+  for(const t of [p.n,p.n+' (cricketer)']){try{const j=await wj(W+encodeURIComponent(t.replace(/ /g,'_')));if(ok(j))return j.thumbnail.source}catch(e){}}
+  return'';
+}
+async function loadPhoto(p){
+  if(!p||PH[p.id]||tried.has(p.id))return;tried.add(p.id);
+  const u=await findPhoto(p);if(!u)return;PH[p.id]=u;
+  try{localStorage.setItem('ph',JSON.stringify(PH))}catch(e){}
+  document.querySelectorAll('.ph[data-pid="'+p.id+'"]').forEach(el=>{if(!el.querySelector('img')){const i=new Image();i.referrerPolicy='no-referrer';i.onload=()=>el.prepend(i);i.src=u}});
+}
+function loadPhotos(){const ids=new Set();document.querySelectorAll('.ph[data-pid]').forEach(e=>ids.add(+e.dataset.pid));[...ids].slice(0,40).forEach(id=>loadPhoto(PL[id]))}
+const head=()=>`<div class="top"><div class="logo"><span>🏏</span><div><b>IPL Auction</b><small>ARENA</small></div></div><div class="tools">${S&&S.stage==='live'?`<button class="ic" onclick="mute=!mute;render()">${mute?'🔇':'🔊'}</button>`:''}<button class="ic" onclick="theme()">🌗</button></div></div>`;
+function render(){
+  const a=document.getElementById('app');
+  a.innerHTML=head()+(!S?home():S.stage==='lobby'?lobby():S.stage==='live'?auction():result());
+  loadPhotos();
+}
+const modeOpts=sel=>Object.keys(MODES).map(k=>`<option value="${k}" ${k==sel?'selected':''}>${MODES[k].n} · ${MODES[k].max} players · ₹${MODES[k].bud} Cr · ${MODES[k].os} overseas</option>`).join('');
+function home(){
+  let lr='';try{lr=localStorage.getItem('lr')||''}catch(e){}
+  const pubs=pubList.length?pubList.map(r=>`<div class="rw"><div><b>${esc(r.code)}</b> <span class="chip">${MODES[r.mode].n}</span>${r.stage==='live'?'<span class="chip os">Live</span>':''}<div class="mut">Host: ${esc(r.hostName||'?')}</div></div><button class="pri sm" onclick="join('${esc(r.code)}')">Join</button></div>`).join(''):'<div class="mut">No public rooms open right now.</div>';
+  const modes=Object.keys(MODES).map(k=>{const m=MODES[k];return`<div class="mode"><b>${m.n}</b><span>${m.max} players · ₹${m.bud} Cr · ${m.os} overseas</span></div>`}).join('');
+  return`<div class="hero"><h1>Build your dream <em>IPL squad</em></h1><p>Live auctions with friends. Real players, real pressure.</p></div>
+<div class="cols"><div>
+${lr?`<div class="card"><h2>Rejoin your room</h2><button class="pri wide" onclick="join('${esc(lr)}')">Rejoin ${esc(lr)}</button></div>`:''}
+<div class="card"><label class="lb">Your name</label><input id="nm" maxlength="20" placeholder="Enter your name" value="${esc(NAME)}">
+<label class="lb">Auction mode</label><select id="md">${modeOpts('mega')}</select>
+<label class="chk"><input type="checkbox" id="pb"> Public room (shown in the list)</label>
+<div class="row"><button class="pri" onclick="create()">Create online room</button><button class="alt" onclick="offline()">Play on one phone</button></div></div>
+<div class="card"><h2>Join with a room code</h2><div class="row"><input id="jc" placeholder="e.g. R042-1234" autocapitalize="characters"><button class="pri" onclick="join()">Join</button></div></div></div>
+<div><div class="card"><h2>Public rooms</h2>${pubs}</div><div class="card"><h2>Auction modes</h2>${modes}</div></div></div>
+<div class="mut ctr">${db?'':'Online mode is not connected.'}</div>`;
+}
+function lobby(){
+  const h=isHost(),m=MODES[S.mode];
+  const tiles=Object.keys(TEAMS).map(t=>{const x=M[t],mine=x&&x.uid===uid,taken=x&&!mine&&!local;return`<button class="tile ${mine||(local&&x)?'on':''}" style="--tc:${TEAMS[t][1]}" ${taken?'disabled':''} onclick="claim('${t}')"><b>${t}</b><span>${TEAMS[t][0]}</span><em>${x?(local?'Playing':esc(x.name)+(mine?' (you)':'')):'Free'}</em></button>`}).join('');
+  return`<div class="card"><div class="mut">${local?'One-phone auction':'Room code'}</div>${local?'':`<div class="code">${esc(S.code)}</div><button class="alt sm" onclick="copyCode()">Copy code</button>`}
+<div class="mut" style="margin-top:6px">${m.n} · ${m.max} players · ₹${m.bud} Cr · ${m.os} overseas max${local?'':' · '+(S.pub?'Public':'Private')}</div>
+${h?`<div class="row" style="margin-top:10px"><select onchange="setMode(this.value)">${modeOpts(S.mode)}</select><select onchange="setBt(this.value)">${btOpts()}</select>${local?'':`<button class="alt" onclick="setPub(${!S.pub})">Make ${S.pub?'private':'public'}</button>`}</div>`:''}</div>
+<h2>${local?'Tap the teams that are playing':'Pick your team'}</h2><div class="tiles">${tiles}</div>
+${h?`<button class="pri wide" style="margin-top:14px" onclick="start()">Start auction · ${Object.keys(M).length} teams</button><div class="mut ctr">Keep this screen open while the auction runs.</div>`:'<div class="mut ctr">Waiting for the host to start...</div>'}
+<button class="alt wide" onclick="leave()">Leave room</button>`;
+}
+function squadCard(t){
+  const T=S.teams[t],spent=T.sq.reduce((a,s)=>a+s.pr,0);
+  return`<div class="card" style="border-top:4px solid ${TEAMS[t][1]}"><h2>${TEAMS[t][0]}</h2><div class="mut">Owner: ${esc(T.name)} · Spent ${cr(spent)} · ${T.sq.length} players</div>
+${T.sq.slice().reverse().map(s=>{const p=PL[s.id];return`<div class="sq">${ph(p,'sm')}<div><b>${esc(p.n)}</b><span class="mut">${ROLE[p.r]}${p.o?' · overseas':''}</span></div><div style="text-align:right"><div class="pr">${cr(s.pr)}</div><span class="chip rt">★ ${p.q}</span></div></div>`}).join('')||'<div class="mut">No players yet.</div>'}</div>`;
+}
+function auction(){
+  const c=S.cur,p=c&&PL[c.pid],mt=myTeam(),m=MODES[S.mode],L=S.last;
+  const set=S.round==2?'Accelerated round':setName(S.i-1);
+  let main='';
+  if(c){
+    const T=c.tm,col=T?TEAMS[T][1]:'var(--acc)',pct=Math.max(0,Math.min(100,rem(c)/TT()));
+    let btn='';
+    if(local)btn=`<div class="tgrid">${Object.keys(S.teams).map(t=>`<button class="tb" style="--tc:${TEAMS[t][1]}" ${S.teams[t].sq.length>=m.max||c.tm===t||!can(S.teams[t],p,need())?'disabled':''} onclick="bid('${t}')">${t} · ${cr(need())}</button>`).join('')}</div>`;
+    else if(mt)btn=`<button class="pri bidbtn" ${c.tm===mt||!can(S.teams[mt],p,need())?'disabled':''} onclick="bid('${mt}')">${c.tm===mt?'You lead the bid':'BID '+cr(need())}</button>`;
+    else btn='<div class="mut ctr">You are watching this auction.</div>';
+    main=`<div class="card stage" style="--tc:${col}"><div class="mut">${set} · Player ${S.i} of ${S.order.length}</div>
+<div class="pl">${ph(p,'xl')}<div class="pi"><div class="nm">${esc(p.n)}</div><div><span class="chip">${ROLE[p.r]}</span>${p.o?'<span class="chip os">✈ Overseas</span>':'<span class="chip in">🇮🇳 Indian</span>'}</div><div class="mut">Base price ${cr(base(p))}</div></div></div>
+<div class="bidbox"><div><div class="mut">Current bid</div><div class="amt">${cr(c.bid)}</div></div><div class="tmr"><span id="tm">${Math.max(0,Math.ceil(rem(c)/1000))}s</span></div></div>
+<div class="bar"><i id="bf" style="width:${pct}%"></i></div>
+<div class="lead">${T?`Leading: <b style="color:${col}">${TEAMS[T][0]}</b>`:'No bids yet. Be the first!'}</div>${btn}</div>`;
+  }else if(L){
+    const q=PL[L.pid],sold=!!L.tm;
+    main=`<div class="card stage soldbox" style="--tc:${sold?TEAMS[L.tm][1]:'#ef4444'}"><div class="pl" style="justify-content:center">${ph(q,'xl')}</div><div class="nm">${esc(q.n)}</div>
+<div class="stamp ${sold?'s':'u'}">${sold?'SOLD':'UNSOLD'}</div>${sold?`<div><b style="color:${TEAMS[L.tm][1]}">${TEAMS[L.tm][0]}</b> · ${cr(L.pr)}</div><span class="chip rt">★ Rating ${q.q}</span>`:''}<div class="mut" style="margin-top:8px">Next player coming up...</div></div>`;
+  }else main=`<div class="card stage"><div class="nm">🎙 ${esc(S.msg||'')}</div></div>`;
+  const up=S.order.slice(S.i,S.i+15).map((id,k)=>{const q=PL[id];return`<div class="sq"><b style="width:22px">${k+1}</b>${ph(q,'sm')}<div><b>${esc(q.n)}</b><span class="mut">${ROLE[q.r]}${q.o?' · overseas':''} · ${S.round==2?'Accelerated':setName(S.i+k)}</span></div><div class="pr">${cr(base(q))}</div></div>`}).join('')||'<div class="mut">No more players in this round.</div>';
+  const teams=Object.keys(S.teams).map(t=>{const x=S.teams[t];return`<tr class="cl ${t===mt?'me':''}" onclick="openT=openT==='${t}'?'':'${t}';render()"><td style="color:${TEAMS[t][1]}">${t} ▾<div class="mut">${esc(x.name)}</div></td><td>${cr(x.bud)}</td><td>${x.sq.length}/${m.max}</td><td>${x.os}/${m.os}</td></tr>`}).join('');
+  if(S.paused)main=`<div class="card ctr"><b>⏸ Auction paused</b></div>`+main;
+  const ctl=(isHost()?`<div class="card"><div class="row"><button class="${S.paused?'pri':'alt'}" onclick="${S.paused?'resume()':'pause()'}">${S.paused?'▶ Resume':'⏸ Pause'}</button><select onchange="setBt(this.value)">${btOpts()}</select>${local?'':`<button class="alt" onclick="setPub(${!S.pub})">${S.pub?'🌐 Public':'🔒 Private'}</button>`}</div><div class="mut">Host controls. Timer changes apply from the next bid.</div></div>`:`<div class="card mut">${S.pub?'🌐 Public room':'🔒 Private room'} · ${S.bt||10}s per bid</div>`)+`<button class="alt wide" onclick="leave()">Leave auction</button>`;
+  return`<div class="cols"><div>${main}${ctl}
+<div class="card feed"><div class="mut">Live feed</div>${(S.log||[]).map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="mut">-</div>'}</div>
+<button class="alt wide" onclick="showUp=!showUp;render()">${showUp?'Hide':'Show'} upcoming players</button>${showUp?`<div class="card"><h2>Coming up next</h2>${up}</div>`:''}</div>
+<div><div class="card wrap"><h2>Teams</h2><table><tr><th>Team</th><th>Purse</th><th>Squad</th><th>OS</th></tr>${teams}</table><div class="mut" style="margin-top:6px">Tap a team to see its squad, prices and ratings.</div></div>
+${openT&&S.teams[openT]?squadCard(openT):(mt?squadCard(mt):'')}</div></div>`;
+}
+function result(){
+  const ids=Object.keys(S.teams).map(t=>({t,r:rate(S.teams[t])})).sort((a,b)=>b.r.score-a.r.score);
+  return`<div class="hero"><h1>Auction <em>complete</em></h1><p>Teams ranked by squad balance and player quality.</p></div>
+${ids.map((x,i)=>{const T=S.teams[x.t];return`<div class="card" style="border-top:4px solid ${TEAMS[x.t][1]}"><div class="rank"><div class="rk">#${i+1}</div><div><h2 style="margin:0;color:${TEAMS[x.t][1]}">${TEAMS[x.t][0]}</h2><div class="mut">${esc(T.name)} · Purse left ${cr(T.bud)}</div></div><div style="margin-left:auto;font-size:26px;font-weight:900">${x.r.score}</div></div>
+<div class="meter"><i style="width:${x.r.score}%"></i></div><div><b>${x.r.grade}</b> · Star: ${esc(x.r.best)}</div>
+${x.r.gaps.length?`<div class="mut">Needs: ${x.r.gaps.join(', ')}</div>`:'<div class="mut">Balanced: openers, middle order, finishers, pace and spin covered</div>'}
+<div style="margin-top:8px">${T.sq.map(s=>{const p=PL[s.id];return`<div class="sq">${ph(p,'sm')}<div><b>${esc(p.n)}</b><span class="mut">${ROLE[p.r]}${p.o?' · overseas':''}</span></div><div style="text-align:right"><div class="pr">${cr(s.pr)}</div><span class="chip rt">★ ${p.q}</span></div></div>`}).join('')}</div></div>`}).join('')}
+<button class="pri wide" onclick="analyst()">Ask the AI analyst</button><div class="card" id="ai" style="white-space:pre-wrap">Tap the button for expert commentary (works inside Claude only).</div><button class="alt wide" onclick="leave()">Back to home</button>`;
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('ipl-sw-v2.js').catch(()=>{});
+init();
+</script></body></html>
